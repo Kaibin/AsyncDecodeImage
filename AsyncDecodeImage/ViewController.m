@@ -5,12 +5,16 @@
 //  Created by kaibin on 17/2/26.
 //  Copyright © 2017年 demo. All rights reserved.
 //
-
+/**
+*   大尺寸图片帧动画解码
+*   如果帧动画重复播放的频率不高，不需要考虑对原图或者对解码后位图数据做缓存
+*/
 #import "ViewController.h"
 #import "YYWeakProxy.h"
 #import <QuartzCore/QuartzCore.h>
 #import <ImageIO/ImageIO.h>
 #import "YYFPSLabel.h"
+#import "AutoPurgeCache.h"
 
 #define kFramesPerSecond 30
 #define kImageCount 80
@@ -22,8 +26,11 @@
 @property (nonatomic, assign) NSInteger index;
 @property (nonatomic, strong) UIButton *asyncButton;
 @property (nonatomic, strong) UIButton *mainButton;
+@property (nonatomic, strong) UIButton *mainButton2;
 @property (nonatomic, strong) NSMutableArray *imageArray;
 @property (nonatomic, strong) YYFPSLabel *fpsLabel;
+@property (nonatomic, strong) NSCache *memCache;
+
 @end
 
 @implementation ViewController
@@ -38,40 +45,60 @@
     
     self.asyncButton = [UIButton buttonWithType:UIButtonTypeCustom];
     self.asyncButton.backgroundColor = [UIColor grayColor];
-    self.asyncButton.titleLabel.font = [UIFont systemFontOfSize:16];
+    self.asyncButton.titleLabel.font = [UIFont systemFontOfSize:14];
     [self.asyncButton setTitleColor:[UIColor blueColor] forState:UIControlStateNormal];
-    [self.asyncButton setTitle:@"子线程解码" forState:UIControlStateNormal];
-    self.asyncButton.frame = CGRectMake((self.view.bounds.size.width)/2-120, self.view.bounds.size.height - 100, 100, 40);
+    [self.asyncButton setTitle:@"边解码边播放" forState:UIControlStateNormal];
+    self.asyncButton.frame = CGRectMake(20, self.view.bounds.size.height - 100, 100, 40);
     [self.view addSubview:self.asyncButton];
     [self.asyncButton addTarget:self action:@selector(asyncPlay:) forControlEvents:UIControlEventTouchUpInside];
     
     self.mainButton = [UIButton buttonWithType:UIButtonTypeCustom];
     self.mainButton.backgroundColor = [UIColor grayColor];
-    self.mainButton.titleLabel.font = [UIFont systemFontOfSize:16];
+    self.mainButton.titleLabel.font = [UIFont systemFontOfSize:14];
     [self.mainButton setTitleColor:[UIColor blueColor] forState:UIControlStateNormal];
-    [self.mainButton setTitle:@"主线程解码" forState:UIControlStateNormal];
-    self.mainButton.frame = CGRectMake((self.view.bounds.size.width)/2+20, self.view.bounds.size.height - 100, 100, 40);
+    [self.mainButton setTitle:@"imageNamed" forState:UIControlStateNormal];
+    self.mainButton.frame = CGRectMake(130, self.view.bounds.size.height - 100, 100, 40);
     [self.view addSubview:self.mainButton];
-    [self.mainButton addTarget:self action:@selector(mainPlay:) forControlEvents:UIControlEventTouchUpInside];
+    [self.mainButton addTarget:self action:@selector(clickImageNamed:) forControlEvents:UIControlEventTouchUpInside];
     
+    self.mainButton2 = [UIButton buttonWithType:UIButtonTypeCustom];
+    self.mainButton2.backgroundColor = [UIColor grayColor];
+    self.mainButton2.titleLabel.font = [UIFont systemFontOfSize:14];
+    [self.mainButton2 setTitleColor:[UIColor blueColor] forState:UIControlStateNormal];
+    [self.mainButton2 setTitle:@"imageWithContentsOfFile" forState:UIControlStateNormal];
+    self.mainButton2.frame = CGRectMake(240, self.view.bounds.size.height - 100, 120, 40);
+    [self.view addSubview:self.mainButton2];
+    [self.mainButton2 addTarget:self action:@selector(clickImageWithContentsOfFile:) forControlEvents:UIControlEventTouchUpInside];
+
     self.fpsLabel = [[YYFPSLabel alloc] initWithFrame:CGRectMake(0, self.view.bounds.size.height - 160, self.view.bounds.size.width, 30)];
     [self.view addSubview:self.fpsLabel];
+    
+    // Init the memory cache
+    self.memCache = [[AutoPurgeCache alloc] init];
+    self.memCache.name = @"memCache";
+    self.memCache.totalCostLimit = 200*1024*1024;//200M
 }
 
 //帧动画图片数组
-- (NSMutableArray *)imageSequence
+- (NSMutableArray *)imageArrayWithCache:(BOOL)cache
 {
     if (!self.imageArray) {
         self.imageArray = [[NSMutableArray alloc] init];
         for (int i = 1; i <= kImageCount; i++) {
             NSString *fileName = [NSString stringWithFormat:@"gift_cupid_1_%d@2x", i];
             NSString *filePath = [[NSBundle mainBundle] pathForResource:fileName ofType:@"png"];
-            UIImage *image = [UIImage imageWithContentsOfFile:filePath];
+            UIImage *image;
+            if (cache) {
+                //系统会把图片和解码后位图数据缓存到内存，只有在内存低时才会被释放,下次家族同一个图片无需解码
+                image = [UIImage imageNamed:fileName];
+            } else {
+                //系统不会缓存原图片和解码后位图数据，每次加载图片都需要解码
+                image = [UIImage imageWithContentsOfFile:filePath];
+            }
             if (image) {
                 [self.imageArray addObject:image];
             }
         }
-        
     }
     return self.imageArray;
 }
@@ -82,15 +109,6 @@
     self.displayLink = [CADisplayLink displayLinkWithTarget:[YYWeakProxy proxyWithTarget:self] selector:@selector(frameAnimation:)];
     self.displayLink.preferredFramesPerSecond = kFramesPerSecond;
     [self.displayLink addToRunLoop:[NSRunLoop mainRunLoop] forMode:NSDefaultRunLoopMode];
-}
-
-//使用animationImages属性播放帧动画
-- (void)mainPlay:(id)sender
-{
-    self.imageView.animationDuration = kImageCount * 1./kFramesPerSecond;
-    self.imageView.animationRepeatCount = 1;
-    self.imageView.animationImages = [self imageSequence];//解码后的位图数据都会保存在系统缓存下，只有在内存低之类的时候才会被释放
-    [self.imageView startAnimating];
 }
 
 - (void)frameAnimation:(id)sender
@@ -104,30 +122,82 @@
     };
     NSString *fileName = [NSString stringWithFormat:@"gift_cupid_1_%ld@2x", (long)self.index];
     NSString *filePath = [[NSBundle mainBundle] pathForResource:fileName ofType:@"png"];
-    NSData *data = filePath ? [NSData dataWithContentsOfFile:filePath] : nil;//加载图片后，不进行解码,也不缓存原图片,图像渲染前进行解码
-    if (!data) {
-        return;
+    //加载图片后，不进行解码,也不缓存原图片,图像渲染前进行解码
+    UIImage *image = [UIImage imageWithContentsOfFile:filePath];
+    [self decodeImage:image];
+//    UIImage *image = [self imageAtFilePath:filePath];
+//    self.imageView.image = image;
+}
+
+//通过ImageIO获取图像
+- (UIImage *)imageAtFilePath:(NSString *)filePath
+{
+    //kCGImageSourceShouldCacheImmediately表示是否在加载完后立刻开始解码，默认为NO表示在渲染时才解码
+    //kCGImageSourceShouldCache是否会对解码后的位图数据做缓存，64位设备默认为YES，32位设备默认为NO
+    CFDictionaryRef options = (__bridge CFDictionaryRef)@{(__bridge id)kCGImageSourceShouldCacheImmediately:@(NO), (__bridge id)kCGImageSourceShouldCache:@(NO)};
+    NSURL *imageURL = [NSURL fileURLWithPath:filePath];
+    CGImageSourceRef source = CGImageSourceCreateWithURL((__bridge CFURLRef)imageURL, NULL);
+    CGImageRef imageRef = CGImageSourceCreateImageAtIndex(source, 0, options);//创建一个未解码的CGImage,解码后不缓存
+    CGFloat scale = 1;
+    if ([filePath rangeOfString:@"@2x"].location != NSNotFound) {
+        scale = 2.0;
     }
-    //子线程解码,耗cpu较高
+    UIImage *image = [UIImage imageWithCGImage:imageRef scale:scale orientation:UIImageOrientationUp];
+    CGImageRelease(imageRef);
+    CFRelease(source);
+    return image;
+}
+
+//使用animationImages属性播放帧动画，会导致内存暴增
+- (void)clickImageNamed:(id)sender
+{
+    self.imageView.animationDuration = kImageCount * 1./kFramesPerSecond;
+    self.imageView.animationRepeatCount = 1;
+    //animationImages copy property
+    self.imageView.animationImages = [self imageArrayWithCache:YES];
+    [self.imageView startAnimating];
+    [self performSelector:@selector(didFinishAnimation) withObject:nil afterDelay:self.imageView.animationDuration];
+}
+
+//使用animationImages属性播放帧动画，会导致内存暴增
+- (void)clickImageWithContentsOfFile:(id)sender
+{
+    self.imageView.animationDuration = kImageCount * 1./kFramesPerSecond;
+    self.imageView.animationRepeatCount = 1;
+    //animationImages copy property
+    self.imageView.animationImages = [self imageArrayWithCache:NO];
+    [self.imageView startAnimating];
+    [self performSelector:@selector(didFinishAnimation) withObject:nil afterDelay:self.imageView.animationDuration];
+}
+
+//帧动画结束后释放图片内存
+- (void)didFinishAnimation
+{
+    [self.imageArray removeAllObjects];
+    self.imageArray = nil;
+    self.imageView.animationImages = nil;
+}
+
+- (void)decodeImage:(UIImage *)image
+{
+    //异步线程图片解码,耗cpu较高
     dispatch_async(dispatch_get_global_queue(DISPATCH_QUEUE_PRIORITY_DEFAULT, 0), ^{
-        CGImageSourceRef source = CGImageSourceCreateWithData((__bridge CFTypeRef)data, NULL);//创建ImageSource
-        //kCGImageSourceShouldCache=NO表示解码后不缓存，64位机器默认为YES，32位机器默认为NO
-        //kCGImageSourceShouldCacheImmediately表示是否在加载完后立刻开始解码，这里我们要自己实现子线程解码所以设置NO
-        CFDictionaryRef dic = (__bridge CFDictionaryRef)@{(__bridge id)kCGImageSourceShouldCache:@NO, (__bridge id)kCGImageSourceShouldCacheImmediately: @NO};
-        CGImageRef image = CGImageSourceCreateImageAtIndex(source, 0, dic);//创建一个未解码的CGImage,解码后不缓存
-        CGImageRef decodedImage = CGImageCreateDecodedCopy(image, YES);//解码
+        CGImageRef decodedImage = decodeImageWithCGImage(image.CGImage, YES);//强制解码
         dispatch_async(dispatch_get_main_queue(), ^{
-            self.imageView.layer.contents = (__bridge id)decodedImage;
-            self.imageView.layer.contentsScale = 2.0;//set the contentsScale to match image
+            self.imageView.image = [UIImage imageWithCGImage:decodedImage scale:image.scale orientation:UIImageOrientationUp];
             CFRelease(decodedImage);
-            CFRelease(image);
-            CFRelease(source);
         });
     });
 }
+//    if ([self.memCache objectForKey:filePath]) {
+//        UIImage *image = [self.memCache objectForKey:filePath];
+//        self.imageView.image = image;
+//        return;
+//    }
+//    [self.memCache setObject:image forKey:filePath cost:cacheCostForImage(image)];
 
 //返回解码后位图数据
-CGImageRef CGImageCreateDecodedCopy(CGImageRef imageRef, BOOL decodeForDisplay)
+CGImageRef decodeImageWithCGImage(CGImageRef imageRef, BOOL decodeForDisplay)
 {
     if (!imageRef) return NULL;
     size_t width = CGImageGetWidth(imageRef);
@@ -145,6 +215,7 @@ CGImageRef CGImageCreateDecodedCopy(CGImageRef imageRef, BOOL decodeForDisplay)
         }
         // BGRA8888 (premultiplied) or BGRX8888
         // same as UIGraphicsBeginImageContext() and -[UIView drawRect:]
+        //先把图片绘制到 CGBitmapContext 中，然后从 Bitmap 直接创建图片
         CGBitmapInfo bitmapInfo = kCGBitmapByteOrder32Host;
         bitmapInfo |= hasAlpha ? kCGImageAlphaPremultipliedFirst : kCGImageAlphaNoneSkipFirst;
         CGContextRef context = CGBitmapContextCreate(NULL, width, height, 8, 0, CGColorSpaceCreateDeviceRGB(), bitmapInfo);
@@ -176,5 +247,8 @@ CGImageRef CGImageCreateDecodedCopy(CGImageRef imageRef, BOOL decodeForDisplay)
     }
 }
 
+NSUInteger cacheCostForImage(UIImage *image) {
+    return image.size.height * image.size.width * image.scale * image.scale;
+}
 
 @end

@@ -95,6 +95,7 @@
 		303F2A4F1E6328CA00CA2E39 /* gift_cupid_1_9@2x.png in Resources */ = {isa = PBXBuildFile; fileRef = 303F29FB1E6328CA00CA2E39 /* gift_cupid_1_9@2x.png */; };
 		303F2A501E6328CA00CA2E39 /* YYFPSLabel.m in Sources */ = {isa = PBXBuildFile; fileRef = 303F29FD1E6328CA00CA2E39 /* YYFPSLabel.m */; };
 		303F2A511E6328CA00CA2E39 /* YYWeakProxy.m in Sources */ = {isa = PBXBuildFile; fileRef = 303F29FF1E6328CA00CA2E39 /* YYWeakProxy.m */; };
+		309A44261E6564D600F3AFB4 /* AutoPurgeCache.m in Sources */ = {isa = PBXBuildFile; fileRef = 309A44251E6564D600F3AFB4 /* AutoPurgeCache.m */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -192,6 +193,8 @@
 		303F29FD1E6328CA00CA2E39 /* YYFPSLabel.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; path = YYFPSLabel.m; sourceTree = "<group>"; };
 		303F29FE1E6328CA00CA2E39 /* YYWeakProxy.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = YYWeakProxy.h; sourceTree = "<group>"; };
 		303F29FF1E6328CA00CA2E39 /* YYWeakProxy.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; path = YYWeakProxy.m; sourceTree = "<group>"; };
+		309A44241E6564D600F3AFB4 /* AutoPurgeCache.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = AutoPurgeCache.h; sourceTree = "<group>"; };
+		309A44251E6564D600F3AFB4 /* AutoPurgeCache.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; path = AutoPurgeCache.m; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -224,6 +227,8 @@
 		303F29921E63288B00CA2E39 /* AsyncDecodeImage */ = {
 			isa = PBXGroup;
 			children = (
+				309A44241E6564D600F3AFB4 /* AutoPurgeCache.h */,
+				309A44251E6564D600F3AFB4 /* AutoPurgeCache.m */,
 				303F29AA1E6328C900CA2E39 /* Resource */,
 				303F29FC1E6328CA00CA2E39 /* YYFPSLabel.h */,
 				303F29FD1E6328CA00CA2E39 /* YYFPSLabel.m */,
@@ -502,6 +507,7 @@
 				303F2A501E6328CA00CA2E39 /* YYFPSLabel.m in Sources */,
 				303F29951E63288B00CA2E39 /* main.m in Sources */,
 				303F2A511E6328CA00CA2E39 /* YYWeakProxy.m in Sources */,
+				309A44261E6564D600F3AFB4 /* AutoPurgeCache.m in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -658,6 +664,7 @@
 				303F29A91E63288B00CA2E39 /* Release */,
 			);
 			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
 		};
 /* End XCConfigurationList section */
 	};
