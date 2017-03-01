@@ -124,16 +124,15 @@
     NSString *filePath = [[NSBundle mainBundle] pathForResource:fileName ofType:@"png"];
     //加载图片后，不进行解码,也不缓存原图片,图像渲染前进行解码
 //    UIImage *image = [UIImage imageWithContentsOfFile:filePath];
-//    [self decodeImage:image];
     UIImage *image = [self imageAtFilePath:filePath];
-    self.imageView.image = image;
+    [self decodeImage:image];
 }
 
 //通过ImageIO获取图像
 - (UIImage *)imageAtFilePath:(NSString *)filePath
 {
     //kCGImageSourceShouldCacheImmediately表示是否在加载完后立刻开始解码，默认为NO表示在渲染时才解码
-    //kCGImageSourceShouldCache是否会对解码后的位图数据做缓存，64位设备默认为YES，32位设备默认为NO
+    //kCGImageSourceShouldCache可以设置在图片的生命周期内，保存图片解码后的数据。64位设备默认为YES，32位设备默认为NO
     CFDictionaryRef options = (__bridge CFDictionaryRef)@{(__bridge id)kCGImageSourceShouldCacheImmediately:@(NO), (__bridge id)kCGImageSourceShouldCache:@(NO)};
     NSURL *imageURL = [NSURL fileURLWithPath:filePath];
     CGImageSourceRef source = CGImageSourceCreateWithURL((__bridge CFURLRef)imageURL, NULL);
