@@ -89,7 +89,7 @@
             NSString *filePath = [[NSBundle mainBundle] pathForResource:fileName ofType:@"png"];
             UIImage *image;
             if (cache) {
-                //系统会把图片和解码后位图数据缓存到内存，只有在内存低时才会被释放,下次家族同一个图片无需解码
+                //系统会把图片和解码后位图数据缓存到内存，只有在内存低时才会被释放,
                 image = [UIImage imageNamed:fileName];
             } else {
                 //系统不会缓存原图片和解码后位图数据，每次加载图片都需要解码
@@ -123,10 +123,10 @@
     NSString *fileName = [NSString stringWithFormat:@"gift_cupid_1_%ld@2x", (long)self.index];
     NSString *filePath = [[NSBundle mainBundle] pathForResource:fileName ofType:@"png"];
     //加载图片后，不进行解码,也不缓存原图片,图像渲染前进行解码
-    UIImage *image = [UIImage imageWithContentsOfFile:filePath];
-    [self decodeImage:image];
-//    UIImage *image = [self imageAtFilePath:filePath];
-//    self.imageView.image = image;
+//    UIImage *image = [UIImage imageWithContentsOfFile:filePath];
+//    [self decodeImage:image];
+    UIImage *image = [self imageAtFilePath:filePath];
+    self.imageView.image = image;
 }
 
 //通过ImageIO获取图像
@@ -137,50 +137,50 @@
     CFDictionaryRef options = (__bridge CFDictionaryRef)@{(__bridge id)kCGImageSourceShouldCacheImmediately:@(NO), (__bridge id)kCGImageSourceShouldCache:@(NO)};
     NSURL *imageURL = [NSURL fileURLWithPath:filePath];
     CGImageSourceRef source = CGImageSourceCreateWithURL((__bridge CFURLRef)imageURL, NULL);
-    CGImageRef imageRef = CGImageSourceCreateImageAtIndex(source, 0, options);//创建一个未解码的CGImage,解码后不缓存
+    CGImageRef imageRef = CGImageSourceCreateImageAtIndex(source, 0, options);//创建一个未解码的CGImage
     CGFloat scale = 1;
     if ([filePath rangeOfString:@"@2x"].location != NSNotFound) {
         scale = 2.0;
     }
-    UIImage *image = [UIImage imageWithCGImage:imageRef scale:scale orientation:UIImageOrientationUp];
+    UIImage *image = [UIImage imageWithCGImage:imageRef scale:scale orientation:UIImageOrientationUp];//此时图片还没有解码
     CGImageRelease(imageRef);
     CFRelease(source);
     return image;
 }
 
-//使用animationImages属性播放帧动画，会导致内存暴增
 - (void)clickImageNamed:(id)sender
 {
-    self.imageView.animationDuration = kImageCount * 1./kFramesPerSecond;
-    self.imageView.animationRepeatCount = 1;
-    //animationImages copy property
-    self.imageView.animationImages = [self imageArrayWithCache:YES];
-    [self.imageView startAnimating];
-    [self performSelector:@selector(didFinishAnimation) withObject:nil afterDelay:self.imageView.animationDuration];
+    //会对解码后的图片位图数据缓存
+    [self playAnimationImages:[self imageArrayWithCache:YES]];
+}
+
+- (void)clickImageWithContentsOfFile:(id)sender
+{
+    //不会对解码后的图片位图数据缓存
+    [self playAnimationImages:[self imageArrayWithCache:NO]];
 }
 
 //使用animationImages属性播放帧动画，会导致内存暴增
-- (void)clickImageWithContentsOfFile:(id)sender
+- (void)playAnimationImages:(NSArray *)images
 {
     self.imageView.animationDuration = kImageCount * 1./kFramesPerSecond;
     self.imageView.animationRepeatCount = 1;
-    //animationImages copy property
-    self.imageView.animationImages = [self imageArrayWithCache:NO];
+    self.imageView.animationImages = images;//animationImages的copy属性会对images拷贝，使得images里面的图片retainCount都加1
     [self.imageView startAnimating];
     [self performSelector:@selector(didFinishAnimation) withObject:nil afterDelay:self.imageView.animationDuration];
 }
 
-//帧动画结束后释放图片内存
+//帧动画结束后
 - (void)didFinishAnimation
 {
     [self.imageArray removeAllObjects];
     self.imageArray = nil;
-    self.imageView.animationImages = nil;
+    self.imageView.animationImages = nil;//释放拷贝的images,images里面的图片retainCount减一释放内存
 }
 
 - (void)decodeImage:(UIImage *)image
 {
-    //异步线程图片解码,耗cpu较高
+    //异步线程图片解码
     dispatch_async(dispatch_get_global_queue(DISPATCH_QUEUE_PRIORITY_DEFAULT, 0), ^{
         CGImageRef decodedImage = decodeImageWithCGImage(image.CGImage, YES);//强制解码
         dispatch_async(dispatch_get_main_queue(), ^{
@@ -189,14 +189,8 @@
         });
     });
 }
-//    if ([self.memCache objectForKey:filePath]) {
-//        UIImage *image = [self.memCache objectForKey:filePath];
-//        self.imageView.image = image;
-//        return;
-//    }
-//    [self.memCache setObject:image forKey:filePath cost:cacheCostForImage(image)];
 
-//返回解码后位图数据
+//返回解码后位图数据 Core Graphics offscreen rendering based on CPU
 CGImageRef decodeImageWithCGImage(CGImageRef imageRef, BOOL decodeForDisplay)
 {
     if (!imageRef) return NULL;
