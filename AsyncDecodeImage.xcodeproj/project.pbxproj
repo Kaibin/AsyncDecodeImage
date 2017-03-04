@@ -227,9 +227,9 @@
 		303F29921E63288B00CA2E39 /* AsyncDecodeImage */ = {
 			isa = PBXGroup;
 			children = (
+				303F29AA1E6328C900CA2E39 /* Resource */,
 				309A44241E6564D600F3AFB4 /* AutoPurgeCache.h */,
 				309A44251E6564D600F3AFB4 /* AutoPurgeCache.m */,
-				303F29AA1E6328C900CA2E39 /* Resource */,
 				303F29FC1E6328CA00CA2E39 /* YYFPSLabel.h */,
 				303F29FD1E6328CA00CA2E39 /* YYFPSLabel.m */,
 				303F29FE1E6328CA00CA2E39 /* YYWeakProxy.h */,

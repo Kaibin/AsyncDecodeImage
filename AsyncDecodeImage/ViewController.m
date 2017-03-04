@@ -29,7 +29,6 @@
 @property (nonatomic, strong) UIButton *mainButton2;
 @property (nonatomic, strong) NSMutableArray *imageArray;
 @property (nonatomic, strong) YYFPSLabel *fpsLabel;
-@property (nonatomic, strong) NSCache *memCache;
 
 @end
 
@@ -72,11 +71,6 @@
 
     self.fpsLabel = [[YYFPSLabel alloc] initWithFrame:CGRectMake(0, self.view.bounds.size.height - 160, self.view.bounds.size.width, 30)];
     [self.view addSubview:self.fpsLabel];
-    
-    // Init the memory cache
-    self.memCache = [[AutoPurgeCache alloc] init];
-    self.memCache.name = @"memCache";
-    self.memCache.totalCostLimit = 200*1024*1024;//200M
 }
 
 //帧动画图片数组
@@ -89,7 +83,7 @@
             NSString *filePath = [[NSBundle mainBundle] pathForResource:fileName ofType:@"png"];
             UIImage *image;
             if (cache) {
-                //系统会把图片和解码后位图数据缓存到内存，只有在内存低时才会被释放,
+                //系统自动会把图片和解码后位图数据缓存到内存，缓存无法控制，只有在内存低时才会被释放,
                 image = [UIImage imageNamed:fileName];
             } else {
                 //系统不会缓存原图片和解码后位图数据，每次加载图片都需要解码
@@ -122,17 +116,16 @@
     };
     NSString *fileName = [NSString stringWithFormat:@"gift_cupid_1_%ld@2x", (long)self.index];
     NSString *filePath = [[NSBundle mainBundle] pathForResource:fileName ofType:@"png"];
-    //加载图片后，不进行解码,也不缓存原图片,图像渲染前进行解码
-//    UIImage *image = [UIImage imageWithContentsOfFile:filePath];
-    UIImage *image = [self imageAtFilePath:filePath];
-    [self decodeImage:image];
+    UIImage *image1 = [UIImage imageWithContentsOfFile:filePath];//并没有真正把图片数据加载到内存，渲染时才解压，在UIImage生命周期内保存解压后的数据
+    UIImage *image2 = [self imageAtFilePath:filePath];
+    [self decodeImage:image1];
 }
 
-//通过ImageIO获取图像
+//ImageIO来创建图片，然后在图片的生命周期保留解压后的版本
 - (UIImage *)imageAtFilePath:(NSString *)filePath
 {
     //kCGImageSourceShouldCacheImmediately表示是否在加载完后立刻开始解码，默认为NO表示在渲染时才解码
-    //kCGImageSourceShouldCache可以设置在图片的生命周期内，保存图片解码后的数据。64位设备默认为YES，32位设备默认为NO
+    //kCGImageSourceShouldCache可以设置在图片的生命周期内是保存图片解码后的数据还是原始图片，64位设备默认为YES，32位设备默认为NO
     CFDictionaryRef options = (__bridge CFDictionaryRef)@{(__bridge id)kCGImageSourceShouldCacheImmediately:@(NO), (__bridge id)kCGImageSourceShouldCache:@(NO)};
     NSURL *imageURL = [NSURL fileURLWithPath:filePath];
     CGImageSourceRef source = CGImageSourceCreateWithURL((__bridge CFURLRef)imageURL, NULL);
@@ -164,7 +157,7 @@
 {
     self.imageView.animationDuration = kImageCount * 1./kFramesPerSecond;
     self.imageView.animationRepeatCount = 1;
-    self.imageView.animationImages = images;//animationImages的copy属性会对images拷贝，使得images里面的图片retainCount都加1
+    self.imageView.animationImages = images;//animationImages的copy属性会对images拷贝，使得images里面的图片没有被释放
     [self.imageView startAnimating];
     [self performSelector:@selector(didFinishAnimation) withObject:nil afterDelay:self.imageView.animationDuration];
 }
@@ -174,7 +167,7 @@
 {
     [self.imageArray removeAllObjects];
     self.imageArray = nil;
-    self.imageView.animationImages = nil;//释放拷贝的images,images里面的图片retainCount减一释放内存
+    self.imageView.animationImages = nil;//释放拷贝的images以及存储的图片
 }
 
 - (void)decodeImage:(UIImage *)image
