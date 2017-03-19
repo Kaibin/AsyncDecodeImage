@@ -27,9 +27,8 @@
 @property (nonatomic, strong) UIButton *asyncButton;
 @property (nonatomic, strong) UIButton *mainButton;
 @property (nonatomic, strong) UIButton *mainButton2;
-@property (nonatomic, strong) NSMutableArray *imageArray;
 @property (nonatomic, strong) YYFPSLabel *fpsLabel;
-
+@property (nonatomic, strong) NSMutableArray *imageArray;
 @end
 
 @implementation ViewController
@@ -77,21 +76,25 @@
 - (NSMutableArray *)imageArrayWithCache:(BOOL)cache
 {
     if (!self.imageArray) {
-        self.imageArray = [[NSMutableArray alloc] init];
-        for (int i = 1; i <= kImageCount; i++) {
-            NSString *fileName = [NSString stringWithFormat:@"gift_cupid_1_%d@2x", i];
-            NSString *filePath = [[NSBundle mainBundle] pathForResource:fileName ofType:@"png"];
-            UIImage *image;
-            if (cache) {
-                //系统自动会把图片和解码后位图数据缓存到内存，缓存无法控制，只有在内存低时才会被释放,
-                image = [UIImage imageNamed:fileName];
-            } else {
-                //系统不会缓存原图片和解码后位图数据，每次加载图片都需要解码
-                image = [UIImage imageWithContentsOfFile:filePath];
-            }
-            if (image) {
-                [self.imageArray addObject:image];
-            }
+        self.imageArray =  [[NSMutableArray alloc] init];
+    }
+    if (self.imageArray.count == kImageCount) {
+        return self.imageArray;
+    }
+    for (int i = 1; i <= kImageCount; i++) {
+        NSString *fileName = [NSString stringWithFormat:@"gift_cupid_1_%d@2x", i];
+        NSString *filePath = [[NSBundle mainBundle] pathForResource:fileName ofType:@"png"];
+        UIImage *image;
+        if (cache) {
+            //系统自动会把图片和解码后位图数据缓存到内存，缓存无法控制，只有在内存低时才会被释放
+            image = [UIImage imageNamed:fileName];
+        } else {
+            //系统不会缓存原图片和解码后位图数据，每次加载图片都需要解码
+            image = [UIImage imageWithContentsOfFile:filePath];
+//            image = [self imageAtFilePath:filePath];
+        }
+        if (image) {
+            [self.imageArray addObject:image];
         }
     }
     return self.imageArray;
@@ -116,9 +119,9 @@
     };
     NSString *fileName = [NSString stringWithFormat:@"gift_cupid_1_%ld@2x", (long)self.index];
     NSString *filePath = [[NSBundle mainBundle] pathForResource:fileName ofType:@"png"];
-    UIImage *image1 = [UIImage imageWithContentsOfFile:filePath];//并没有真正把图片数据加载到内存，渲染时才解压，在UIImage生命周期内保存解压后的数据
-    UIImage *image2 = [self imageAtFilePath:filePath];
-    [self decodeImage:image1];
+//    UIImage *image = [UIImage imageWithContentsOfFile:filePath];//并没有真正把图片数据加载到内存，渲染时才解压，在UIImage生命周期内保存解压后的数据
+    UIImage *image = [self imageAtFilePath:filePath];
+    [self decodeImage:image];
 }
 
 //ImageIO来创建图片，然后在图片的生命周期保留解压后的版本
@@ -157,7 +160,7 @@
 {
     self.imageView.animationDuration = kImageCount * 1./kFramesPerSecond;
     self.imageView.animationRepeatCount = 1;
-    self.imageView.animationImages = images;//animationImages的copy属性会对images拷贝，使得images里面的图片没有被释放
+    self.imageView.animationImages = images;//animationImages的copy属性会对images数组里面的uiimage进行指针拷贝，使得images里面的图片没有被释放
     [self.imageView startAnimating];
     [self performSelector:@selector(didFinishAnimation) withObject:nil afterDelay:self.imageView.animationDuration];
 }
@@ -165,8 +168,6 @@
 //帧动画结束后
 - (void)didFinishAnimation
 {
-    [self.imageArray removeAllObjects];
-    self.imageArray = nil;
     self.imageView.animationImages = nil;//释放拷贝的images以及存储的图片
 }
 
